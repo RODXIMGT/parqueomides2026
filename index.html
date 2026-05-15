@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MIDES — Sistema de Parqueos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<!-- Firebase CDN (compat) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="script.js" defer></script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="fbLoading">
+  <img src="LOGO.JPG" alt="MIDES" class="loading-logo"
+  onerror="this.src='logo.jpg';this.onerror=function(){this.src='Logo.jpg';this.onerror=function(){this.src='logo.png';this.onerror=function(){this.style.display='none';};};};">
+  <div class="loading-spinner"></div>
+  <p>Conectando con el sistema…</p>
+</div>
+
+<!-- ═══ LOGIN ═══ -->
+<div id="loginScreen" class="login-screen hidden">
+  <div class="login-bg"><div class="orb orb1"></div><div class="orb orb2"></div><div class="orb orb3"></div></div>
+  <div class="login-card">
+    <div class="login-logo-wrap">
+      <img src="LOGO.JPG" alt="MIDES" class="login-logo-img"
+  onerror="this.src='logo.jpg';this.onerror=function(){this.src='Logo.jpg';this.onerror=function(){this.src='logo.png';this.onerror=function(){this.parentElement.innerHTML='<div class=\'logo-fallback\'>🛡️</div>';};};};">
+    </div>
+    <div class="login-header">
+      <span class="login-ministry">MINISTERIO DE DESARROLLO SOCIAL</span>
+      <h1 class="login-title">Sistema de Parqueos</h1>
+      <p class="login-subtitle">Acceso institucional seguro</p>
+    </div>
+    <form class="login-form" id="loginForm">
+      <div class="form-group">
+        <label>Correo electrónico</label>
+        <div class="input-wrapper">
+          <span class="input-icon"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/><path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/></svg></span>
+          <input type="email" id="loginUser" placeholder="usuario@mides.gob.gt" autocomplete="username" required>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Contraseña</label>
+        <div class="input-wrapper">
+          <span class="input-icon"><svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/></svg></span>
+          <input type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password" required>
+          <button type="button" id="togglePassBtn" class="toggle-pass"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/><path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/></svg></button>
+        </div>
+      </div>
+      <div id="loginError" class="login-error hidden">Correo o contraseña incorrectos</div>
+      <button type="submit" class="btn-login"><span>Iniciar Sesión</span><svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd"/></svg></button>
+      <button type="button" id="forgotPassBtn" class="forgot-pass-link">¿Olvidaste tu contraseña? Enviar correo de recuperación</button>
+      <div id="forgotMsg" class="forgot-msg hidden"></div>
+    </form>
+  </div>
+</div>
+
+<!-- ═══ APP ═══ -->
+<div id="app" class="app hidden">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <img src="LOGO.JPG" alt="MIDES" class="sidebar-logo"
+  onerror="this.src='logo.jpg';this.onerror=function(){this.src='Logo.jpg';this.onerror=function(){this.style.display='none';};};">
+      <div class="brand-text">
+        <span class="brand-name">MIDES</span>
+        <span class="brand-sub">Parqueos</span>
+      </div>
+      <button class="sidebar-close" id="sidebarCloseBtn"><svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg></button>
+    </div>
+    <nav class="sidebar-nav" id="sidebarNav"></nav>
+    <div class="sidebar-footer">
+      <button class="theme-toggle" id="themeToggleBtn">
+        <svg id="themeIcon" viewBox="0 0 20 20" fill="currentColor"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"/></svg>
+        <span id="themeLabel">Modo Oscuro</span>
+      </button>
+      <button class="btn-logout" id="logoutBtn"><svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clip-rule="evenodd"/></svg><span>Cerrar Sesión</span></button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main-content">
+    <header class="topbar">
+      <button class="menu-btn" id="menuBtn"><svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"/></svg></button>
+      <div class="topbar-brand">
+        <img src="LOGO.JPG" alt="MIDES" class="topbar-logo"
+  onerror="this.src='logo.jpg';this.onerror=function(){this.src='Logo.jpg';this.onerror=function(){this.style.display='none';};};">
+        <span class="topbar-title" id="topbarTitle">Panel Principal</span>
+      </div>
+      <div class="topbar-spacer"></div>
+      <div class="user-badge">
+        <div class="user-info-wrap">
+          <span id="userDisplayName">—</span>
+          <span id="userRoleBadge"></span>
+        </div>
+        <div class="user-avatar" id="userAvatar">?</div>
+      </div>
+    </header>
+
+    <!-- ── DASHBOARD ── -->
+    <section id="sec-dashboard" class="section active">
+      <div class="section-header">
+        <h2>Panel Principal</h2>
+        <p>Bienvenido al Sistema de Administración de Parqueos — MIDES</p>
+      </div>
+      <div class="stats-grid">
+        <div class="stat-card primary"><div class="stat-icon"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zm8 0a3 3 0 11-6 0 3 3 0 016 0zm-4.07 11c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 17h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/></svg></div><div class="stat-info"><span class="stat-value" id="statTotal">0</span><span class="stat-label">Total Empleados</span></div></div>
+        <div class="stat-card success"><div class="stat-icon"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zm7 0a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z"/><path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H10a1 1 0 001-1v-1h3.05a2.5 2.5 0 014.9 0H19a1 1 0 001-1v-2a4 4 0 00-4-4h-3V4a1 1 0 00-1-1H3z"/></svg></div><div class="stat-info"><span class="stat-value" id="statAssigned">0</span><span class="stat-label">Parqueos Asignados</span></div></div>
+        <div class="stat-card warning"><div class="stat-icon"><svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/></svg></div><div class="stat-info"><span class="stat-value" id="statPending">0</span><span class="stat-label">Solicitudes Pendientes</span></div></div>
+        <div class="stat-card info"><div class="stat-icon"><svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"/></svg></div><div class="stat-info"><span class="stat-value" id="statAreas">0</span><span class="stat-label">Áreas Registradas</span></div></div>
+      </div>
+      <div class="dashboard-grid">
+        <div class="card">
+          <div class="card-header"><h3>Últimos Registros</h3><button class="btn-sm" id="dashVerTodosBtn">Ver todos</button></div>
+          <div id="recentList" class="recent-list"></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h3>Búsqueda Rápida</h3></div>
+          <div class="search-bar-mini"><svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/></svg><input type="text" id="quickSearchInput" placeholder="Nombre, ID, placa…"></div>
+          <div id="quickResults"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── SEARCH ── -->
+    <section id="sec-search" class="section">
+      <div class="section-header"><h2>Buscar Persona</h2><p>Busca por nombre, ID, área, placa o número de parqueo</p></div>
+      <div class="search-toolbar">
+        <div class="search-bar-main"><svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/></svg><input type="text" id="mainSearchInput" placeholder="Buscar empleado…"><button class="clear-search" id="clearBtn" style="display:none"><svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg></button></div>
+        <div class="search-filters">
+          <select id="filterDir"><option value="">Todas las Áreas</option></select>
+          <select id="filterStatus"><option value="">Todos</option><option value="Activo">Activo</option><option value="Inactivo">Inactivo</option></select>
+        </div>
+        <div class="view-toggle">
+          <button class="view-btn active" id="viewCards" title="Tarjetas"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zm0 8a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zm6-6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zm0 8a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg></button>
+          <button class="view-btn" id="viewTable" title="Tabla"><svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"/></svg></button>
+        </div>
+      </div>
+      <div id="searchResults" class="results-container cards-view"></div>
+    </section>
+
+    <!-- ── SOLICITUDES ── -->
+    <section id="sec-solicitudes" class="section">
+      <div class="section-header"><h2>Solicitudes de Parqueo</h2><p>Gestión de solicitudes de asignación de espacio</p></div>
+
+      <!-- Agregar nuevo empleado con parqueo -->
+      <div class="card" style="margin-bottom:16px" id="nuevoEmpleadoCard">
+        <div class="card-header"><h3>➕ Agregar nuevo empleado con parqueo</h3><button class="btn-sm" id="toggleNuevoEmpForm">+ Agregar</button></div>
+        <div id="nuevoEmpForm" style="display:none;padding-top:12px">
+          <div class="form-grid-3">
+            <div class="form-group"><label>ID / Código</label><input type="text" id="newEmpId" placeholder="Ej: 604"></div>
+            <div class="form-group"><label>Nombre completo</label><input type="text" id="newEmpNombre" placeholder="Apellido Nombre"></div>
+            <div class="form-group"><label>Puesto</label><input type="text" id="newEmpPuesto" placeholder="Cargo o puesto"></div>
+            <div class="form-group"><label>Área / Dirección</label><input type="text" id="newEmpArea" placeholder="Dirección o área"></div>
+            <div class="form-group"><label>No. Parqueo</label><input type="text" id="newEmpParqueo" placeholder="Número de espacio"></div>
+            <div class="form-group"><label>Placa</label><input type="text" id="newEmpPlaca" placeholder="P-1234"></div>
+            <div class="form-group"><label>Teléfono</label><input type="text" id="newEmpTel" placeholder="22345678"></div>
+            <div class="form-group"><label>Correo</label><input type="email" id="newEmpCorreo" placeholder="correo@mides.gob.gt"></div>
+          </div>
+          <div style="margin-top:16px;display:flex;gap:10px">
+            <button class="btn-primary" id="guardarNuevoEmpBtn">💾 Guardar empleado</button>
+            <button class="btn-secondary" id="cancelarNuevoEmpBtn">Cancelar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Nueva solicitud -->
+      <div class="card" id="nuevaSolicitudCard">
+        <div class="card-header"><h3>Nueva Solicitud</h3><button class="btn-sm" id="toggleSolicitudForm">+ Crear solicitud</button></div>
+        <div id="solicitudForm" style="display:none;padding-top:12px">
+          <div class="form-grid-3">
+            <div class="form-group"><label>Empleado (ID o nombre)</label><input type="text" id="solEmpInput" placeholder="Buscar empleado…"><div id="solEmpResults" class="autocomplete-results"></div></div>
+            <div class="form-group"><label>Espacio solicitado</label><input type="text" id="solParqueo" placeholder="Número de parqueo"></div>
+            <div class="form-group"><label>Justificación</label><input type="text" id="solJustificacion" placeholder="Motivo de la solicitud"></div>
+          </div>
+          <div class="form-group" style="margin-top:8px"><label>Aprobadores (selecciona 2-3)</label><div id="aprobadoresSelect" class="aprobadores-grid"></div></div>
+          <div style="margin-top:16px;display:flex;gap:10px">
+            <button class="btn-primary" id="enviarSolicitudBtn">Enviar Solicitud</button>
+            <button class="btn-secondary" id="cancelarSolicitudBtn">Cancelar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filtros -->
+      <div class="sol-filters">
+        <button class="sol-tab active" data-estado="todos">Todas</button>
+        <button class="sol-tab" data-estado="pendiente">⏳ Pendientes</button>
+        <button class="sol-tab" data-estado="aprobado">✅ Aprobadas</button>
+        <button class="sol-tab" data-estado="rechazado">❌ Rechazadas</button>
+      </div>
+
+      <div id="solicitudesList" class="solicitudes-list"></div>
+      <div id="solEmpty" class="empty-state" style="display:none"><p>No hay solicitudes en esta categoría.</p></div>
+    </section>
+
+    <!-- ── HISTORIAL ── -->
+    <section id="sec-historial" class="section">
+      <div class="section-header"><h2>Historial de Parqueos</h2><p>Registro de todos los cambios, asignaciones y revocaciones</p></div>
+      <div class="search-toolbar">
+        <div class="search-bar-main"><svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/></svg><input type="text" id="histSearchInput" placeholder="Buscar en historial…"></div>
+        <select id="histFilterType"><option value="">Todos los eventos</option><option value="asignacion">Asignación</option><option value="cambio">Cambio de espacio</option><option value="revocacion">Revocación</option><option value="solicitud">Solicitud aprobada</option></select>
+        <button class="btn-secondary" id="exportHistorialBtn">⬇ Exportar CSV</button>
+      </div>
+      <div id="historialList" class="historial-list"></div>
+    </section>
+
+    <!-- ── UPLOAD CSV ── -->
+    <section id="sec-upload-csv" class="section">
+      <div class="section-header"><h2>Cargar Datos</h2><p>Carga tu archivo Excel o CSV con el formato MIDES</p></div>
+      <div class="upload-grid">
+        <div class="card upload-card">
+          <div class="drop-zone" id="dropZone">
+            <svg viewBox="0 0 48 48" fill="none"><path d="M24 8v24M16 16l8-8 8 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><rect x="6" y="32" width="36" height="10" rx="2" stroke="currentColor" stroke-width="1.5"/></svg>
+            <h3>Arrastra tu archivo aquí</h3><p>CSV o Excel (.xlsx)</p>
+            <label class="btn-primary" style="cursor:pointer">Seleccionar archivo<input type="file" id="csvInput" accept=".csv,.xlsx,.xls" style="display:none"></label>
+          </div>
+          <p class="upload-note">📋 Columnas: ID, Nombre, Servicio y/o Puesto, Área, Parqueo, Placa, Correo, Teléfono</p>
+          <button class="btn-secondary" id="downloadSampleBtn" style="margin-top:12px">⬇ Descargar plantilla CSV</button>
+        </div>
+        <div class="card" id="csvPreview" style="display:none">
+          <div class="card-header"><h3>Vista previa <span id="previewCount"></span></h3><button class="btn-sm danger" id="cancelImportBtn">Cancelar</button></div>
+          <div class="table-wrap"><table id="previewTable"></table></div>
+          <div class="preview-actions" style="display:flex;flex-direction:column;gap:10px">
+            <div class="import-mode-selector">
+              <label class="import-mode-opt">
+                <input type="radio" name="importMode" value="merge" checked id="modemerge">
+                <div class="import-mode-card">
+                  <strong>🔄 Actualizar inteligente</strong>
+                  <span>Agrega nuevos, actualiza existentes, elimina quienes ya no aparecen</span>
+                </div>
+              </label>
+              <label class="import-mode-opt">
+                <input type="radio" name="importMode" value="replace" id="modereplace">
+                <div class="import-mode-card">
+                  <strong>🗑 Reemplazar todo</strong>
+                  <span>Borra todos los registros actuales y carga los nuevos desde cero</span>
+                </div>
+              </label>
+            </div>
+            <div id="importPreviewStats" class="import-stats"></div>
+            <button class="btn-primary" id="confirmImportBtn">✓ Aplicar importación</button>
+          </div>
+        </div>
+        <div class="card" id="importSuccess" style="display:none">
+          <div class="success-message"><svg viewBox="0 0 48 48" fill="none"><circle cx="24" cy="24" r="20" fill="#d1fae5"/><path d="M15 24l7 7 11-14" stroke="#059669" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg><h3>¡Datos importados!</h3><p id="importMsg"></p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── MAPA DE PARQUEOS ── -->
+    <section id="sec-mapa" class="section">
+      <div class="section-header">
+        <h2>Mapa de Parqueos</h2>
+        <p>359 espacios totales · 5 sótanos de empleados + zonas especiales</p>
+      </div>
+
+      <!-- Zonas especiales -->
+      <div class="mapa-zonas-especiales">
+        <button class="mapa-btn-especial" data-zona="despacho" onclick="renderZonaEspecial('despacho')">
+          <span class="mapa-btn-ico">🏛</span>
+          <div class="mapa-btn-info">
+            <strong>Despacho Superior</strong>
+            <span>Espacios 1-6 y 12-17</span>
+          </div>
+        </button>
+        <button class="mapa-btn-especial" data-zona="inhabilitados" onclick="renderZonaEspecial('inhabilitados')">
+          <span class="mapa-btn-ico">🚫</span>
+          <div class="mapa-btn-info">
+            <strong>Inhabilitados / CCTV</strong>
+            <span>Espacios 7-10 inhabilitados · 11 CCTV</span>
+          </div>
+        </button>
+        <button class="mapa-btn-especial" data-zona="visitas" onclick="renderZonaEspecial('visitas')">
+          <span class="mapa-btn-ico">👥</span>
+          <div class="mapa-btn-info">
+            <strong>Visitas</strong>
+            <span>Espacios 18 al 56</span>
+          </div>
+        </button>
+      </div>
+
+      <!-- Sótanos de empleados -->
+      <div class="mapa-sotanos-label">Sótanos de Empleados</div>
+      <div class="mapa-tabs" id="mapaTabs">
+          <button class="mapa-tab active" data-sotano="s1">🏢 Sótano 1<span class="mapa-tab-sub">Visitas · Despacho</span></button>
+          <button class="mapa-tab" data-sotano="s2">Sótano 2<span class="mapa-tab-sub">57-116 Empleados</span></button>
+          <button class="mapa-tab" data-sotano="s3">Sótano 3<span class="mapa-tab-sub">117-176 Empleados</span></button>
+          <button class="mapa-tab" data-sotano="s4">Sótano 4<span class="mapa-tab-sub">177-236 Empleados</span></button>
+          <button class="mapa-tab" data-sotano="s5">Sótano 5<span class="mapa-tab-sub">237-299 Empleados</span></button>
+          <button class="mapa-tab" data-sotano="motos">🏍 Motos<span class="mapa-tab-sub">300-365</span></button>
+        </div>
+
+      <!-- Leyenda -->
+      <div class="mapa-leyenda">
+          <span class="ley-item"><span class="ley-dot" style="background:#7c3aed;border-radius:3px"></span>Despacho Superior</span>
+          <span class="ley-item"><span class="ley-dot" style="background:#6b7280;border-radius:3px"></span>Inhabilitado</span>
+          <span class="ley-item"><span class="ley-dot" style="background:#0891b2;border-radius:3px"></span>CCTV</span>
+          <span class="ley-item"><span class="ley-dot" style="background:#d97706;border-radius:3px"></span>Visitas</span>
+          <span class="ley-item"><span class="ley-dot" style="background:#10b981;border-radius:3px"></span>Disponible</span>
+          <span class="ley-item"><span class="ley-dot" style="background:#ef4444;border-radius:3px"></span>Ocupado</span>
+          <span class="ley-item"><span class="ley-dot" style="background:#4f46e5;border-radius:3px"></span>Motos</span>
+        </div>
+
+      <div id="mapaContainer" class="mapa-container"></div>
+
+      <div id="mapaInfoCard" class="mapa-info-card hidden">
+        <div class="mapa-info-inner">
+          <button class="mapa-info-close" id="mapaInfoClose">✕</button>
+          <div id="mapaInfoContent"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── FOTOS ── -->
+    <section id="sec-upload-photos" class="section">
+      <div class="section-header"><h2>Fotografías</h2><p>El nombre del archivo debe ser el ID del empleado (ej: 603.jpg)</p></div>
+      <div class="card">
+        <div class="drop-zone" id="photoDropZone">
+          <svg viewBox="0 0 48 48" fill="none"><rect x="4" y="8" width="40" height="32" rx="4" stroke="currentColor" stroke-width="1.5"/><circle cx="16" cy="20" r="4" stroke="currentColor" stroke-width="1.5"/><path d="M4 36l12-10 8 8 6-6 14 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <h3>Arrastra fotografías aquí</h3><p>JPG, PNG — El nombre = ID del empleado</p>
+          <label class="btn-primary" style="cursor:pointer">Seleccionar fotos<input type="file" id="photoInput" accept="image/*" multiple style="display:none"></label>
+        </div>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <div class="card-header">
+          <h3>Fotografías en Firebase</h3>
+          <div style="display:flex;gap:8px">
+            <button class="btn-sm" id="selectAllPhotosBtn">Seleccionar todas</button>
+            <button class="btn-sm danger" id="deleteSelectedPhotosBtn">🗑 Eliminar seleccionadas</button>
+          </div>
+        </div>
+        <div id="photoGrid" class="photo-grid"></div>
+      </div>
+    </section>
+
+    <!-- ── ESTADÍSTICAS ── -->
+    <section id="sec-stats" class="section">
+      <div class="section-header"><h2>Estadísticas</h2><p>Resumen del sistema de parqueos MIDES</p></div>
+      <div class="stats-grid" style="margin-bottom:24px">
+        <div class="stat-card primary"><div class="stat-info"><span class="stat-value" id="s2Total">0</span><span class="stat-label">Total empleados</span></div></div>
+        <div class="stat-card success"><div class="stat-info"><span class="stat-value" id="s2Parking">0</span><span class="stat-label">Con parqueo</span></div></div>
+        <div class="stat-card warning"><div class="stat-info"><span class="stat-value" id="s2Pending">0</span><span class="stat-label">Solicitudes pendientes</span></div></div>
+        <div class="stat-card info"><div class="stat-info"><span class="stat-value" id="s2Areas">0</span><span class="stat-label">Áreas</span></div></div>
+      </div>
+      <div class="dashboard-grid">
+        <div class="card"><div class="card-header"><h3>Empleados por Área</h3></div><div id="dirChart" class="bar-chart"></div></div>
+        <div class="card"><div class="card-header"><h3>Parqueos Asignados</h3></div><div id="parkingTable" class="parking-list"></div></div>
+      </div>
+    </section>
+
+    <!-- ── REPORTES ── -->
+    <section id="sec-reports" class="section">
+      <div class="section-header"><h2>Reportes</h2><p>Genera y exporta reportes del sistema</p></div>
+      <div class="report-grid">
+        <div class="report-card" id="rpt-all">
+          <div class="r-icon">📋</div>
+          <div class="r-info"><h4>Lista Completa</h4><p>Todos los empleados en CSV</p></div>
+          <div class="r-arrow">→</div>
+        </div>
+        <div class="report-card" id="rpt-parking">
+          <div class="r-icon">🚗</div>
+          <div class="r-info"><h4>Con Parqueo</h4><p>Solo empleados con espacio asignado</p></div>
+          <div class="r-arrow">→</div>
+        </div>
+        <div class="report-card" id="rpt-area">
+          <div class="r-icon">🏢</div>
+          <div class="r-info"><h4>Por Área</h4><p>Agrupado por dirección</p></div>
+          <div class="r-arrow">→</div>
+        </div>
+        <div class="report-card" id="rpt-noparking">
+          <div class="r-icon">⚠️</div>
+          <div class="r-info"><h4>Sin Parqueo</h4><p>Empleados sin espacio asignado</p></div>
+          <div class="r-arrow">→</div>
+        </div>
+        <div class="report-card" id="rpt-historial">
+          <div class="r-icon">📅</div>
+          <div class="r-info"><h4>Historial</h4><p>Todos los cambios de parqueo</p></div>
+          <div class="r-arrow">→</div>
+        </div>
+        <div class="report-card" id="rpt-solicitudes">
+          <div class="r-icon">📝</div>
+          <div class="r-info"><h4>Solicitudes</h4><p>Estado de todas las solicitudes</p></div>
+          <div class="r-arrow">→</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── USUARIOS (SuperAdmin) ── -->
+    <section id="sec-users" class="section">
+      <div class="section-header"><h2>Gestión de Usuarios</h2><p>Administra usuarios, roles y permisos del sistema</p></div>
+
+      <!-- Crear usuario -->
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-header"><h3>Agregar nuevo usuario</h3></div>
+        <div class="form-grid-2" style="padding-bottom:16px">
+          <div class="form-group"><label>Nombre completo</label><input type="text" id="newUserName" placeholder="Ej: Juan López"></div>
+          <div class="form-group"><label>Correo electrónico</label><input type="email" id="newUserEmail" placeholder="usuario@mides.gob.gt"></div>
+          <div class="form-group"><label>Contraseña temporal</label><input type="password" id="newUserPass" placeholder="Mínimo 6 caracteres"></div>
+          <div class="form-group"><label>Rol</label>
+            <select id="newUserRole">
+              <option value="viewer">👁 Visualizador — Solo lectura</option>
+              <option value="reporter">📊 Reportes — Lectura + exportar</option>
+              <option value="admin">🔧 Admin — Carga datos + aprobaciones</option>
+              <option value="superadmin">⭐ Super Admin — Acceso completo</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Puede aprobar solicitudes</label>
+            <select id="newUserAprobador">
+              <option value="no">No</option>
+              <option value="si">Sí — es aprobador</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn-primary" id="createUserBtn">+ Crear usuario</button>
+      </div>
+
+      <!-- Tabla usuarios -->
+      <div class="card">
+        <div class="card-header"><h3>Usuarios registrados</h3><button class="btn-sm" id="refreshUsersBtn">↻ Actualizar</button></div>
+        <div class="table-wrap">
+          <table id="usersTable">
+            <thead><tr><th>Nombre</th><th>Correo</th><th>Rol</th><th>Aprobador</th><th>Estado</th><th>Acciones</th></tr></thead>
+            <tbody id="usersTableBody"><tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text-muted)">Cargando…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── CONFIG ── -->
+    <section id="sec-config" class="section">
+      <div class="section-header"><h2>Configuración</h2><p>Ajustes personales del sistema</p></div>
+      <div class="config-grid">
+        <div class="card config-card"><h3>Cambiar contraseña</h3><div class="form-group"><label>Nueva Contraseña</label><input type="password" id="newPass" placeholder="Mínimo 6 caracteres"></div><button class="btn-primary" id="savePassBtn">Guardar</button></div>
+        <div class="card config-card">
+          <h3>Apariencia</h3>
+          <div class="config-item"><span>Modo Oscuro</span><label class="switch"><input type="checkbox" id="darkSwitch"><span class="slider"></span></label></div>
+          <div class="config-item"><span>Color principal</span>
+            <div class="color-options">
+              <button class="color-opt active" style="background:#1a56db" data-primary="#1a56db" data-dark="#0e3a8c"></button>
+              <button class="color-opt" style="background:#047857" data-primary="#047857" data-dark="#065f46"></button>
+              <button class="color-opt" style="background:#7c3aed" data-primary="#7c3aed" data-dark="#5b21b6"></button>
+              <button class="color-opt" style="background:#b45309" data-primary="#b45309" data-dark="#92400e"></button>
+            </div>
+          </div>
+        </div>
+        <div class="card config-card">
+          <h3>Sistema</h3>
+          <div class="config-item"><span>Empleados en Firebase</span><strong id="cfgTotal">—</strong></div>
+          <div class="config-item"><span>Mi rol</span><strong id="cfgRole">—</strong></div>
+          <div class="config-item"><span>Mi correo</span><strong id="cfgEmail">—</strong></div>
+          <div id="cfgAdminActions" style="display:none;margin-top:16px;display:flex;flex-direction:column;gap:8px">
+            <button class="btn-danger" id="clearAllBtn">🗑 Limpiar todos los empleados</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ═══ EMPLOYEE MODAL ═══ -->
+<div id="empModal" class="modal-overlay hidden">
+  <div class="modal-card">
+    <button class="modal-close" id="modalCloseBtn"><svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg></button>
+    <div class="modal-header">
+      <div class="emp-photo-wrap"><img id="empPhoto" src="" alt=""><div class="emp-status-badge" id="empStatus"></div></div>
+      <div class="emp-parking-badge"><span class="parking-label">PARQUEO</span><span class="parking-number" id="empParking">—</span></div>
+    </div>
+    <div class="modal-body" id="empModalBody">
+      <!-- Populated dynamically by openEmployee() -->
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" id="printCardBtn"><svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5 4v3H4a2 2 0 00-2 2v3a2 2 0 002 2h1v2a2 2 0 002 2h6a2 2 0 002-2v-2h1a2 2 0 002-2V9a2 2 0 00-2-2h-1V4a2 2 0 00-2-2H7a2 2 0 00-2 2zm8 0H7v3h6V4zm0 8H7v4h6v-4zm-3-1a1 1 0 110-2 1 1 0 010 2z" clip-rule="evenodd"/></svg>Imprimir</button>
+      <button class="btn-secondary" id="exportPDFBtn"><svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 10-2 0v3.586l-1.293-1.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V8z" clip-rule="evenodd"/></svg>PDF</button>
+      <button class="btn-primary" id="modalCloseBtnFooter">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ EDIT USER MODAL ═══ -->
+<div id="editUserModal" class="modal-overlay hidden">
+  <div class="modal-card" style="max-width:480px">
+    <button class="modal-close" id="editUserCloseBtn"><svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg></button>
+    <div style="padding:24px 28px">
+      <h3 style="margin-bottom:20px;font-family:'Space Grotesk',sans-serif">Editar Usuario</h3>
+      <input type="hidden" id="editUserId">
+      <div class="form-group"><label>Nombre completo</label><input type="text" id="editUserName" placeholder="Nombre"></div>
+      <div class="form-group"><label>Rol</label>
+        <select id="editUserRole">
+          <option value="viewer">👁 Visualizador</option>
+          <option value="reporter">📊 Reportes</option>
+          <option value="admin">🔧 Admin</option>
+          <option value="superadmin">⭐ Super Admin</option>
+        </select>
+      </div>
+      <div class="form-group"><label>¿Es aprobador de solicitudes?</label>
+        <select id="editUserAprobador"><option value="no">No</option><option value="si">Sí</option></select>
+      </div>
+      <div class="form-group"><label>Nueva contraseña (dejar vacío para no cambiar)</label><input type="password" id="editUserPass" placeholder="Nueva contraseña"></div>
+      <div style="display:flex;gap:10px;margin-top:20px">
+        <button class="btn-primary" id="saveEditUserBtn">Guardar cambios</button>
+        <button class="btn-secondary" id="cancelEditUserBtn">Cancelar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ REJECT MODAL ═══ -->
+<div id="rejectModal" class="modal-overlay hidden">
+  <div class="modal-card" style="max-width:420px">
+    <div style="padding:24px 28px">
+      <h3 style="margin-bottom:16px">Rechazar solicitud</h3>
+      <div class="form-group"><label>Motivo del rechazo</label><textarea id="rejectMotivo" rows="3" placeholder="Indique el motivo…" style="width:100%;resize:vertical;padding:10px;border:1px solid var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:14px;background:var(--surface);color:var(--text)"></textarea></div>
+      <div style="display:flex;gap:10px;margin-top:16px">
+        <button class="btn-danger" id="confirmRejectBtn">Confirmar rechazo</button>
+        <button class="btn-secondary" id="cancelRejectBtn">Cancelar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+</body>
+</html>
